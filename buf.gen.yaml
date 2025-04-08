@@ -2,7 +2,8 @@ version: v2
 inputs:
   - directory: proto
 plugins:
-  - local: protoc-gen-ts
-    opt: 
-      - long_type_bigint
+  - local: protoc-gen-es
+    opt:
+      - target=ts
+      - json_types=true
     out: src/gen
