@@ -5,8 +5,10 @@
     "generate": "buf generate",
     "lint": "buf lint",
     "format": "buf format -w",
-    "test": "node -r ts-node/register --test test/**/*.ts"
+    "test": "node -r ts-node/register --test test/**/*.ts",
+    "build": "tsc"
   },
+  "main": "dist/index.js",
   "dependencies": {
     "@bufbuild/protobuf": "^2.2.5",
     "@connectrpc/connect": "^2.0.2",
@@ -16,8 +18,7 @@
     "@bufbuild/buf": "^1.51.0",
     "@bufbuild/protoc-gen-es": "^2.2.5",
     "@types/node": "^20.11.19",
-    "grpc-tools": "^1.13.0",
-    "typescript": "^5.3.3",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }

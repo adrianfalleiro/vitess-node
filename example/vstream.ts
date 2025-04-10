@@ -1,14 +1,14 @@
-import { createVitessClient } from "../src";
-import { TabletType } from "../src/gen/topodata_pb";
-import { VStream } from "../src/VStream";
+import { VtGate } from "../src";
 
 async function main() {
-  const client = createVitessClient({
+  const vtgate = new VtGate({
     baseUrl: 'http://localhost:15991'
   });
 
-  const vs = new VStream(client.vStream({
-    tabletType: TabletType.REPLICA,
+  const controller = new AbortController();
+
+  const vs = vtgate.vStream({
+    tabletType: "REPLICA",
     vgtid: {
       shardGtids: [
         {
@@ -27,18 +27,18 @@ async function main() {
     //     }
     //   ]
     // }
-  }));
-
-  vs.on('change', (change) => {
-    console.log('change event', JSON.stringify(change, null, 2));
-  });
-
-  vs.start();
+  }, { controller });
 
   // Stop the vstream after 15 seconds
   setTimeout(() => {
-    vs.stop();
+    controller.abort();
   }, 15_000);
+
+  for await (const { changes, lastVGtid } of vs) {
+    console.log('changes', changes);
+    console.log('lastVGtid', lastVGtid);
+  }
 }
+
 
 main();

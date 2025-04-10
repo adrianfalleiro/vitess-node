@@ -11,11 +11,11 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "declaration": true
   },
   "include": [
     "src/**/*",
-    "generated/**/*"
   ],
   "exclude": [
     "node_modules"
