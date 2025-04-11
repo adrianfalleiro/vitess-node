@@ -67,12 +67,18 @@ const client = new VtGate({
   baseUrl: "http://localhost:15991",
 });
 
+// Create an abort controller to stop the stream when needed
+const controller = new AbortController();
+
 // Stream query results
-const stream = client.streamExecute({
-  query: {
-    sql: "SELECT * FROM customer LIMIT 100",
+const stream = client.streamExecute(
+  {
+    query: {
+      sql: "SELECT * FROM customer LIMIT 100",
+    },
   },
-});
+  { controller }
+);
 
 // Process the stream
 for await (const response of stream) {
@@ -80,6 +86,9 @@ for await (const response of stream) {
     console.log("Row:", response.row);
   }
 }
+
+// To kill/close the connection at any time:
+controller.abort();
 ```
 
 ### Transactions
@@ -173,14 +182,14 @@ const vs = vtgate.vStream(
   { controller }
 );
 
+// Stop the listener after 15 seconds
+setTimeout(() => controller.abort(), 15_000);
+
 // Process the stream events
 for await (const { changes, lastVGtid } of vs) {
   console.log("changes", changes);
   console.log("lastVGtid", lastVGtid);
 }
-
-// Stop the stream when needed
-controller.abort();
 ```
 
 ## Development
