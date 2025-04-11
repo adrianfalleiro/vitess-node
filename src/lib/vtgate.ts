@@ -220,13 +220,14 @@ export class VtGate {
 
           case "COMMIT":
             const changes = currentTransaction;
-            currentTransaction = [];
 
             if (event.vgtid) {
               lastVGtid = event.vgtid;
             }
 
             yield { changes, lastVGtid };
+
+            currentTransaction = [];
 
             break;
 
