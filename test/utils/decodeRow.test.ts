@@ -1,10 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { decodeRow } from "../../src/lib/decoder";
-import { RowSchema, Type, type FieldJson, type RowJson, type TypeJson } from "../../src/gen/query_pb";
-import { create, fromJson } from "@bufbuild/protobuf";
+import { Decoder } from "../../src/lib/decoder";
+import { type FieldJson, type RowJson, type TypeJson } from "../../src/gen/query_pb";
 
-// Helper function to create FieldJson and RowJson objects compatible with the decodeRow function
+// Helper function to create FieldJson and RowJson objects compatible with the Decoder.decodeRow function
 function createFieldAndRow(defs: Array<{ name: string, type: TypeJson, value: any }>) {
   const fields: FieldJson[] = [];
   const rowLengths: string[] = [];
@@ -34,14 +33,14 @@ function createFieldAndRow(defs: Array<{ name: string, type: TypeJson, value: an
   }
 }
 
-test("decodeRow handles null values", (t) => {
+test("Decoder.decodeRow handles null values", (t) => {
   const { fields, row } = createFieldAndRow([
     { name: "id", type: "INT32", value: 11 },
     { name: "name", type: "VARCHAR", value: null }
   ]);
 
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   assert.deepEqual(result, {
     id: 11,
@@ -49,7 +48,7 @@ test("decodeRow handles null values", (t) => {
   });
 });
 
-test("decodeRow handles numeric types correctly", (t) => {
+test("Decoder.decodeRow handles numeric types correctly", (t) => {
 
   const { fields, row } = createFieldAndRow([
     { name: "tinyint", type: "INT8", value: 1 },
@@ -62,7 +61,7 @@ test("decodeRow handles numeric types correctly", (t) => {
   ]);
 
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   assert.equal(result.tinyint, 1);
   assert.equal(result.smallint, 12345);
@@ -73,7 +72,7 @@ test("decodeRow handles numeric types correctly", (t) => {
   assert.equal(result.decimal, 123.45);
 });
 
-test.skip("decodeRow handles boolean values", (t) => {
+test.skip("Decoder.decodeRow handles boolean values", (t) => {
   const { fields, row } = createFieldAndRow([
     { name: "bool1", type: "INT8", value: 1 },
     { name: "bool2", type: "INT8", value: 0 },
@@ -81,7 +80,7 @@ test.skip("decodeRow handles boolean values", (t) => {
     { name: "bit2", type: "BIT", value: 0 }
   ]);
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   assert.equal(result.bool1, true);
   assert.equal(result.bool2, false);
@@ -89,7 +88,7 @@ test.skip("decodeRow handles boolean values", (t) => {
   assert.equal(result.bit2, false);
 });
 
-test("decodeRow handles date and time values", (t) => {
+test("Decoder.decodeRow handles date and time values", (t) => {
   const { fields, row } = createFieldAndRow([
     { name: "timestamp", type: "TIMESTAMP", value: "2023-04-01 12:34:56" },
     { name: "date", type: "DATE", value: "2023-04-01" },
@@ -97,7 +96,7 @@ test("decodeRow handles date and time values", (t) => {
     { name: "time", type: "TIME", value: "12:34:56" }
   ]);
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   assert.ok(result.timestamp instanceof Date);
   assert.ok(result.date instanceof Date);
@@ -109,7 +108,7 @@ test("decodeRow handles date and time values", (t) => {
   assert.equal(result.datetime.toISOString().slice(0, 10), "2023-04-01");
 });
 
-test.skip("decodeRow handles text types", (t) => {
+test.skip("Decoder.decodeRow handles text types", (t) => {
   const { fields, row } = createFieldAndRow([
     { name: "varchar", type: "VARCHAR", value: "Hello World" },
     { name: "char", type: "CHAR", value: "Fixed" },
@@ -118,7 +117,7 @@ test.skip("decodeRow handles text types", (t) => {
     { name: "set", type: "SET", value: "value1,value2" }
   ]);
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   // ASCII values for all strings
   assert.equal(result.varchar, "Hello World");
@@ -128,7 +127,7 @@ test.skip("decodeRow handles text types", (t) => {
   assert.equal(result.set, "value1,value2");
 });
 
-test.skip("decodeRow handles binary types", (t) => {
+test.skip("Decoder.decodeRow handles binary types", (t) => {
   const { fields, row } = createFieldAndRow([
     { name: "binary", type: "BINARY", value: Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05]) },
     { name: "binaryUUID", type: "BINARY", value: Buffer.from("0123456789abcdef0123456789abcdef", "hex") },
@@ -136,7 +135,7 @@ test.skip("decodeRow handles binary types", (t) => {
     { name: "blob", type: "BLOB", value: Buffer.from("blob-data-test") }
   ]);
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   assert.ok(Buffer.isBuffer(result.binary));
   assert.ok(Buffer.isBuffer(result.binaryUUID));
@@ -149,13 +148,13 @@ test.skip("decodeRow handles binary types", (t) => {
   assert.equal(result.blob.toString('hex'), "626c6f622d646174612d74657374");
 });
 
-test.skip("decodeRow handles JSON type", (t) => {
+test.skip("Decoder.decodeRow handles JSON type", (t) => {
   const { fields, row } = createFieldAndRow([
     { name: "validJson", type: "JSON", value: '{"name":"John","age":30,"city":"New York"}' },
     { name: "invalidJson", type: "JSON", value: "{invalid-json}" }
   ]);
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   assert.equal(result.validJson, {
     name: "John",
@@ -166,13 +165,13 @@ test.skip("decodeRow handles JSON type", (t) => {
   assert.equal(result.invalidJson, "{invalid-json}");
 });
 
-test.skip("decodeRow handles vector type", (t) => {
+test.skip("Decoder.decodeRow handles vector type", (t) => {
   const { fields, row } = createFieldAndRow([
     { name: "validVector", type: "VECTOR", value: [1.0, 2.0, 3.0, 4.0] },
     { name: "invalidVector", type: "VECTOR", value: [1.0, 2.0, 3.0, 4.0] }
   ]);
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   assert.deepEqual(result.validVector, [1.0, 2.0, 3.0, 4.0]);
 
@@ -180,7 +179,7 @@ test.skip("decodeRow handles vector type", (t) => {
   assert.equal(result.invalidVector, "[1.0, 2.0, 3.0, 4.0]");
 });
 
-test.skip("decodeRow handles other types", (t) => {
+test.skip("Decoder.decodeRow handles other types", (t) => {
   const { fields, row } = createFieldAndRow([
     { name: "hexnum", type: "HEXNUM", value: "DEADBEEF" },
     { name: "hexval", type: "HEXVAL", value: "0x1A2B3C" },
@@ -188,7 +187,7 @@ test.skip("decodeRow handles other types", (t) => {
     { name: "raw", type: "RAW", value: "raw-data" }
   ]);
 
-  const result = decodeRow(row, fields);
+  const result = Decoder.decodeRow(row, fields);
 
   assert.equal(result.hexnum, "DEADBEEF");
   assert.equal(result.hexval, "0x1A2B3C");
@@ -206,7 +205,7 @@ test.skip("toSafeNumber throws error for large BigInts", (t) => {
 
   assert.throws(
     () => {
-      decodeRow(row, fields);
+      Decoder.decodeRow(row, fields);
     },
     {
       name: "Error",

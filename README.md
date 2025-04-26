@@ -12,11 +12,11 @@ An expermintal Node.js client library for [Vitess](https://vitess.io/). This cli
 ## Supported services
 
 - [x] vtgate
-- [ ] binlog
-- [ ] vtctl
-- [ ] vtcld
-- [ ] tablemanager
-- [ ] query
+- [x] binlog
+- [x] vtctl
+- [x] vtcld
+- [x] tablemanager
+- [x] query
 
 ## Installation
 

@@ -7,3 +7,7 @@ plugins:
       - target=ts
       - json_types=true
     out: src/gen
+  - local: ["ts-node", "./client-gen.ts"]
+    opt:
+      - target=ts
+    out: src/gen

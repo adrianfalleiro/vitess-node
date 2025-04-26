@@ -1,8 +1,8 @@
-import { createBindVariable, VtGate } from "../src";
+import { createBindVariable, Vitess } from "../src";
 
 async function main() {
   // Create the Vitess client
-  const client = new VtGate({
+  const client = new Vitess({
     baseUrl: 'http://localhost:15991'
   });
 

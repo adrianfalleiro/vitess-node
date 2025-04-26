@@ -1,33 +1,20 @@
-import { createClient, type Client } from "@connectrpc/connect";
-import { createGrpcTransport, type GrpcTransportOptions } from "@connectrpc/connect-node";
-import { Vitess } from "../gen/vtgateservice_pb";
-import { fromJson, toJson } from "@bufbuild/protobuf";
+import { type CallOptions } from "@connectrpc/connect";
+import { type GrpcTransportOptions } from "@connectrpc/connect-node";
 import {
   type CloseSessionRequestJson,
-  CloseSessionRequestSchema,
-  CloseSessionResponseSchema,
   type ExecuteBatchRequestJson,
-  ExecuteBatchRequestSchema,
-  ExecuteBatchResponseSchema,
   type ExecuteRequestJson,
-  ExecuteRequestSchema,
   type ExecuteResponseJson,
-  ExecuteResponseSchema,
   type PrepareRequestJson,
-  PrepareRequestSchema,
-  PrepareResponseSchema,
   type SessionJson,
   type StreamExecuteRequestJson,
-  StreamExecuteRequestSchema,
-  StreamExecuteResponseSchema,
   type VStreamRequestJson,
-  VStreamRequestSchema,
-  VStreamResponseSchema
 } from "../gen/vtgate_pb";
 import type { RPCErrorJson } from "../gen/vtrpc_pb";
-import { decodeRow } from "./decoder";
+import { Decoder } from "./decoder";
 import type { FieldJson } from "../gen/query_pb";
 import type { VGtidJson } from "../gen/binlogdata_pb";
+import { VitessClient } from "../gen/vtgateservice_client";
 
 type TransactionChange = {
   tableName: string;
@@ -58,7 +45,7 @@ function decodeExecuteResponse(response: ExecuteResponseJson): ExecuteResponse {
   const fields = result.fields ?? [];
   const resultRows = result.rows ?? [];
 
-  const rows = resultRows.map(row => decodeRow(row, fields));
+  const rows = resultRows.map(row => Decoder.decodeRow(row, fields));
 
   return {
     rows,
@@ -69,82 +56,61 @@ function decodeExecuteResponse(response: ExecuteResponseJson): ExecuteResponse {
   };
 }
 
-type StreamOptions = {
-  controller?: AbortController;
-}
-
-export class VtGate {
-  #client: Client<typeof Vitess>;
+export class Vitess {
+  #client: VitessClient;
 
   constructor(options: GrpcTransportOptions) {
-    const transport = createGrpcTransport(options);
-    this.#client = createClient(Vitess, transport);
+    this.#client = new VitessClient(options);
   }
 
   get raw() {
     return this.#client;
   }
 
-  async execute(params: ExecuteRequestJson) {
-    const result = await this.#client.execute(fromJson(ExecuteRequestSchema, params));
-
-    const resultJson = toJson(ExecuteResponseSchema, result);
-    return decodeExecuteResponse(resultJson);
+  async execute(params: ExecuteRequestJson, opts?: CallOptions) {
+    const result = await this.#client.execute(params, opts);
+    return decodeExecuteResponse(result);
   }
 
-  async executeBatch(params: ExecuteBatchRequestJson) {
-    // Call the original method with converted params
-    const result = await this.#client.executeBatch(fromJson(ExecuteBatchRequestSchema, params));
-    const resultJson = toJson(ExecuteBatchResponseSchema, result);
-    return resultJson.results?.map(result => decodeExecuteResponse(result));
+  async executeBatch(params: ExecuteBatchRequestJson, opts?: CallOptions) {
+    const result = await this.#client.executeBatch(params, opts);
+    return result.results?.map(result => decodeExecuteResponse(result));
   }
 
-  async *streamExecute(params: StreamExecuteRequestJson, { controller }: StreamOptions = {}) {
-    const result = this.#client.streamExecute(fromJson(StreamExecuteRequestSchema, params));
+  async *streamExecute(params: StreamExecuteRequestJson, opts?: CallOptions) {
+    const result = this.#client.streamExecute(params, opts);
 
     let fieldDefs: FieldJson[] = [];
     let session: SessionJson | undefined;
 
     for await (const chunk of result) {
-      if (controller?.signal.aborted) {
-        return;
+      if (chunk.result?.fields) {
+        fieldDefs = chunk.result.fields;
       }
 
-      const chunkJson = toJson(StreamExecuteResponseSchema, chunk);
-
-      if (chunkJson.result?.fields) {
-        fieldDefs = chunkJson.result.fields;
+      if (chunk.session) {
+        session = chunk.session;
       }
 
-      if (chunkJson.session) {
-        session = chunkJson.session;
-      }
-
-      if (chunkJson.result?.rows) {
-        const rows = chunkJson.result.rows;
+      if (chunk.result?.rows) {
+        const rows = chunk.result.rows;
         for (const row of rows) {
-          const decodedRow = decodeRow(row, fieldDefs);
+          const decodedRow = Decoder.decodeRow(row, fieldDefs);
           yield { row: decodedRow, session };
         }
       }
     }
   }
 
-  async *vStream(params: VStreamRequestJson, { controller }: StreamOptions = {}) {
-    const result = this.#client.vStream(fromJson(VStreamRequestSchema, params));
+  async *vStream(params: VStreamRequestJson, opts?: CallOptions) {
+    const result = this.#client.vStream(params, opts);
 
     let lastVGtid: VGtidJson | null = null;
     const tableFields = new Map<string, FieldJson[]>()
     let currentTransaction: TransactionChange[] = [];
 
     for await (const row of result) {
-      if (controller?.signal.aborted) {
-        return;
-      }
-
-      const rowJson = toJson(VStreamResponseSchema, row);
-
-      if (!rowJson.events) {
+      if (!row.events) {
         return;
       }
 
@@ -159,12 +125,8 @@ export class VtGate {
       // DDL	      Schema change (e.g. alter table)
       // HEARTBEAT	Keepalive signal
       // OTHER	    Anything else (e.g., SET statements in binlog — can usually ignore)
-      for (const event of rowJson.events) {
+      for (const event of row.events) {
         switch (event.type) {
-          case "VERSION":
-            console.log(`Vitess version: ${event}`);
-            break;
-
           case "VGTID":
             if (!event.vgtid) {
               break;
@@ -207,11 +169,11 @@ export class VtGate {
                 break;
               }
               const before = (change.before?.lengths?.length && change.before?.values?.length)
-                ? decodeRow(change.before, fields)
+                ? Decoder.decodeRow(change.before, fields)
                 : null;
 
               const after = (change.after?.lengths?.length && change.after?.values?.length)
-                ? decodeRow(change.after, fields)
+                ? Decoder.decodeRow(change.after, fields)
                 : null;
 
               currentTransaction.push({ tableName, before, after });
@@ -232,20 +194,15 @@ export class VtGate {
             break;
 
           case "ROLLBACK":
-            console.warn('ROLLBACK received, discarding buffered transaction');
             currentTransaction = [];
             yield { changes: [], lastVGtid };
             break;
 
           case "DDL":
-            console.warn(`DDL Change: ${event.statement}`);
-            break;
-
+          case "VERSION":
           case "HEARTBEAT":
-            console.debug('Heartbeat');
-            break;
-
           case "OTHER":
+            // Ignore these events
             break;
 
           default:
@@ -255,16 +212,14 @@ export class VtGate {
     }
   }
 
-  async prepare(params: PrepareRequestJson) {
-    const result = await this.#client.prepare(fromJson(PrepareRequestSchema, params));
-    const resultJson = toJson(PrepareResponseSchema, result);
-    return resultJson;
+  async prepare(params: PrepareRequestJson, opts?: CallOptions) {
+    const result = await this.#client.prepare(params, opts);
+    return result;
   }
 
-  async closeSession(params: CloseSessionRequestJson) {
-    const result = await this.#client.closeSession(fromJson(CloseSessionRequestSchema, params));
-    const resultJson = toJson(CloseSessionResponseSchema, result);
-    return resultJson;
+  async closeSession(params: CloseSessionRequestJson, opts?: CallOptions) {
+    const result = await this.#client.closeSession(params, opts);
+    return result;
   }
 }
 

@@ -1,7 +1,7 @@
-import { VtGate } from "../src";
+import { Vitess } from "../src";
 
 async function main() {
-  const vtgate = new VtGate({
+  const vtgate = new Vitess({
     baseUrl: 'http://localhost:15991'
   });
 
@@ -27,7 +27,7 @@ async function main() {
     //     }
     //   ]
     // }
-  }, { controller });
+  }, { signal: controller.signal });
 
   // Stop the vstream after 15 seconds
   setTimeout(() => {

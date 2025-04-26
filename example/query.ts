@@ -1,10 +1,10 @@
-import { VtGate } from "../src";
+import { Vitess } from "../src";
 import util from "node:util";
 import { createBindVariable } from "../src/lib/encoder";
 
 async function main() {
   // Create the Vitess client
-  const client = new VtGate({
+  const client = new Vitess({
     baseUrl: 'http://localhost:15991'
   });
 
