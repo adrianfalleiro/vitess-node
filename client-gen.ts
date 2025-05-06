@@ -4,9 +4,9 @@ import {
   type Schema,
   safeIdentifier,
 } from "@bufbuild/protoplugin";
-import { version } from "../package.json";
+import { version } from "./package.json";
 
-const protocGenTwirpEs = createEcmaScriptPlugin({
+const protocGenJsonServiceEs = createEcmaScriptPlugin({
   name: "protoc-gen-json-service-es",
   version: `v${String(version)}`,
   generateTs,
@@ -79,4 +79,4 @@ function generateTs(schema: Schema) {
   }
 }
 
-runNodeJs(protocGenTwirpEs);
+runNodeJs(protocGenJsonServiceEs);

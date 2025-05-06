@@ -67,6 +67,7 @@ export class Vitess {
     return this.#client;
   }
 
+
   async execute(params: ExecuteRequestJson, opts?: CallOptions) {
     const result = await this.#client.execute(params, opts);
     return decodeExecuteResponse(result);
