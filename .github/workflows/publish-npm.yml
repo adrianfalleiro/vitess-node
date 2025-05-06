@@ -17,6 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run generate
       - run: npm run build
+      - run: npm run test
       - name: Publish
         if: github.ref_name == 'master'
         uses: JS-DevTools/npm-publish@v2
