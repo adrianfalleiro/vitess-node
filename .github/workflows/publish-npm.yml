@@ -19,7 +19,7 @@ jobs:
       - run: npm run build
       - run: npm run test
       - name: Publish
-        if: github.ref_name == 'master'
+        if: github.ref_name == 'main'
         uses: JS-DevTools/npm-publish@v2
         with:
           token: ${{ secrets.NPM_TOKEN }}
