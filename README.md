@@ -29,7 +29,7 @@ npm install vitess-node
 ### Basic Query Execution
 
 ```typescript
-import { VtGate, createBindVariable } from "vitess-node";
+import { VtGate, createBindVariable } from "@adrianfalleiro/vitess";
 
 // Create the Vitess client
 const client = new VtGate({
@@ -60,7 +60,7 @@ const result = await client.executeBatch({
 ### Streaming Query Results
 
 ```typescript
-import { VtGate } from "vitess-node";
+import { VtGate } from "@adrianfalleiro/vitess";
 
 // Create the Vitess client
 const client = new VtGate({
@@ -94,7 +94,7 @@ controller.abort();
 ### Transactions
 
 ```typescript
-import { VtGate, createBindVariable } from "vitess-node";
+import { VtGate, createBindVariable } from "@adrianfalleiro/vitess";
 
 // Create the Vitess client
 const client = new VtGate({
@@ -156,7 +156,7 @@ try {
 ### Using VStream for Change Data Capture
 
 ```typescript
-import { VtGate } from "vitess-node";
+import { VtGate } from "@adrianfalleiro/vitess";
 
 const vtgate = new VtGate({
   baseUrl: "http://localhost:15991",
