@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
 jobs:
   publish-npm:
     runs-on: ubuntu-latest
@@ -14,13 +17,14 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org/"
+
       - run: npm ci
       - run: npm run generate
       - run: npm run build
       - run: npm run test
       - name: Publish
-        if: github.ref_name == 'main'
-        uses: JS-DevTools/npm-publish@v2
+        if: github.ref_name == 'master'
+        uses: JS-DevTools/npm-publish@v3
         with:
           token: ${{ secrets.NPM_TOKEN }}
           registry: "https://npm.pkg.github.com"
