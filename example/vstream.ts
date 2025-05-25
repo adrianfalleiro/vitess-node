@@ -1,43 +1,44 @@
-import { Vitess } from "../src";
+import { VStream } from "../src";
 
 async function main() {
-  const vtgate = new Vitess({
-    baseUrl: 'http://localhost:15991'
+  const vStreamClient = new VStream({
+    baseUrl: "http://localhost:15991",
   });
 
-  const controller = new AbortController();
-
-  const vs = vtgate.vStream({
-    tabletType: "REPLICA",
+  vStreamClient.start({
+    tabletType: "PRIMARY",
     vgtid: {
       shardGtids: [
         {
           keyspace: "commerce",
           shard: "",
-          // gtid: "current",
+          gtid: "current",
           tablePKs: [],
         },
       ],
     },
-    // filter: {
-    //   rules: [
-    //     {
-    //       match: "customer",
-    //       filter: "select * from customer"
-    //     }
-    //   ]
-    // }
-  }, { signal: controller.signal });
+    filter: {
+      rules: [
+        {
+          match: "customer",
+          filter: "select * from customer"
+        }
+      ]
+    }
+  });
 
-  // Stop the vstream after 15 seconds
-  setTimeout(() => {
-    controller.abort();
-  }, 15_000);
+  vStreamClient.on("change", (data) => {
+    console.log("change", data);
+  });
 
-  for await (const { changes, lastVGtid } of vs) {
-    console.log('changes', changes);
-    console.log('lastVGtid', lastVGtid);
-  }
+  vStreamClient.on("error", (err) => {
+    console.error("error", err);
+  });
+
+  void setTimeout(async () => {
+    const lastVtgid = await vStreamClient.stop();
+    console.log("lastVtgid", lastVtgid);
+  }, 5_000);
 }
 
 
