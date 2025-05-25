@@ -8,7 +8,12 @@ import EventEmitter from "events";
 import { RawClient } from "..";
 import { Http2SessionManager } from "@connectrpc/connect-node";
 
-export type TransactionChange = {
+export type VStreamChangeEvent = {
+  changes: Array<TransactionChange>;
+  lastVGtid: VGtidJson | null;
+};
+
+type TransactionChange = {
   tableName: string;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
@@ -35,9 +40,8 @@ export class VStream extends EventEmitter {
       pingIdleConnection: true,
       pingIntervalMs: 1000,
       pingTimeoutMs: 2000,
-    }, {
-      protocol: "http:"
     });
+    void this.#sessionManager.connect();
     this.#client = new RawClient.VitessClient({
       baseUrl: options.baseUrl,
       sessionManager: this.#sessionManager
@@ -186,14 +190,14 @@ export class VStream extends EventEmitter {
     this.#heartbeatInterval = setInterval(() => {
       if (this.#lastHeartbeat) {
         if (Date.now() - this.#lastHeartbeat > 2000) {
-          void this.stop(new Error("Heartbeat timeout"))
+          void this.stop()
             .catch((err) => this.emit("error", err));
         }
       }
     }, 2000);
   }
 
-  async stop(reason?: Error): Promise<VGtidJson | null> {
+  async stop(): Promise<VGtidJson | null> {
     if (this.#heartbeatInterval) {
       clearInterval(this.#heartbeatInterval);
     }
@@ -208,8 +212,6 @@ export class VStream extends EventEmitter {
 
     this.#stopping = true;
     await this.streamCompletionPromise;
-    this.#sessionManager.abort(reason);
-
     return this.lastVGtid
   }
 }
