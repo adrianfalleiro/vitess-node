@@ -22,7 +22,7 @@ type TransactionChange = {
 
 export type VStreamOptions = {
   baseUrl: string;
-  transport: {
+  transport?: {
     pingOptions?: Http2SessionOptions;
     http2SessionOptions?: http2.ClientSessionOptions | http2.SecureClientSessionOptions;
   }
@@ -53,7 +53,7 @@ export class VStream extends EventEmitter {
 
     this.#heartbeatInterval = heartbeatInterval;
 
-    this.#sessionManager = new Http2SessionManager(baseUrl, transport.pingOptions, transport.http2SessionOptions);
+    this.#sessionManager = new Http2SessionManager(baseUrl, transport?.pingOptions, transport?.http2SessionOptions);
     void this.#sessionManager.connect();
 
     this.#client = new RawClient.VitessClient({
