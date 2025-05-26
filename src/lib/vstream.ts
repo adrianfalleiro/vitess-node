@@ -6,7 +6,8 @@ import type { FieldJson } from "../gen/query_pb";
 import type { VGtidJson, VStreamResponseJson } from "../gen/binlogdata_pb";
 import EventEmitter from "events";
 import { RawClient } from "..";
-import { Http2SessionManager } from "@connectrpc/connect-node";
+import { Http2SessionManager, type Http2SessionOptions } from "@connectrpc/connect-node";
+import * as http2 from "http2";
 
 export type VStreamChangeEvent = {
   changes: Array<TransactionChange>;
@@ -19,6 +20,15 @@ type TransactionChange = {
   after: Record<string, unknown> | null;
 };
 
+export type VStreamOptions = {
+  baseUrl: string;
+  transport: {
+    pingOptions?: Http2SessionOptions;
+    http2SessionOptions?: http2.ClientSessionOptions | http2.SecureClientSessionOptions;
+  }
+  heartbeatInterval?: number;
+}
+
 export class VStream extends EventEmitter {
   #client: RawClient.VitessClient;
   #vstream: AsyncGenerator<VStreamResponseJson> | null = null;
@@ -27,23 +37,27 @@ export class VStream extends EventEmitter {
   #tableFields = new Map<string, FieldJson[]>();
   #currentTransaction: TransactionChange[] = [];
   #lastHeartbeat = 0;
-  #heartbeatInterval: NodeJS.Timeout | null = null;
+  #heartbeatInterval: number;
+  #heartbeatTimer: NodeJS.Timeout | null = null;
 
   #sessionManager: Http2SessionManager;
 
   #stopping = false;
   streamCompletionPromise: Promise<void> | undefined = undefined;
 
-  constructor(options: { baseUrl: string }) {
+
+  constructor(options: VStreamOptions) {
     super();
-    this.#sessionManager = new Http2SessionManager(options.baseUrl, {
-      pingIdleConnection: true,
-      pingIntervalMs: 1000,
-      pingTimeoutMs: 2000,
-    });
+
+    const { baseUrl, transport, heartbeatInterval = 2000 } = options;
+
+    this.#heartbeatInterval = heartbeatInterval;
+
+    this.#sessionManager = new Http2SessionManager(baseUrl, transport.pingOptions, transport.http2SessionOptions);
     void this.#sessionManager.connect();
+
     this.#client = new RawClient.VitessClient({
-      baseUrl: options.baseUrl,
+      baseUrl,
       sessionManager: this.#sessionManager
     });
   }
@@ -187,19 +201,19 @@ export class VStream extends EventEmitter {
       this.stop();
     });
 
-    this.#heartbeatInterval = setInterval(() => {
+    this.#heartbeatTimer = setInterval(() => {
       if (this.#lastHeartbeat) {
-        if (Date.now() - this.#lastHeartbeat > 2000) {
+        if (Date.now() - this.#lastHeartbeat > this.#heartbeatInterval) {
           void this.stop()
             .catch((err) => this.emit("error", err));
         }
       }
-    }, 2000);
+    }, this.#heartbeatInterval);
   }
 
   async stop(): Promise<VGtidJson | null> {
-    if (this.#heartbeatInterval) {
-      clearInterval(this.#heartbeatInterval);
+    if (this.#heartbeatTimer) {
+      clearInterval(this.#heartbeatTimer);
     }
 
     if (this.#stopping) {
