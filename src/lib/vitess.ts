@@ -187,7 +187,7 @@ export class Vitess {
               lastVGtid = event.vgtid;
             }
 
-            yield { changes, lastVGtid };
+            yield { changes, lastVGtid, timestamp: Number(event.timestamp ?? 0) };
 
             currentTransaction = [];
 
@@ -195,7 +195,7 @@ export class Vitess {
 
           case "ROLLBACK":
             currentTransaction = [];
-            yield { changes: [], lastVGtid };
+            yield { changes: [], lastVGtid, timestamp: Number(event.timestamp ?? 0) };
             break;
 
           case "DDL":

@@ -12,6 +12,7 @@ import * as http2 from "http2";
 export type VStreamChangeEvent = {
   changes: Array<TransactionChange>;
   lastVGtid: VGtidJson | null;
+  timestamp: number;
 };
 
 type TransactionChange = {
@@ -155,7 +156,7 @@ export class VStream extends EventEmitter {
               this.#lastVGtid = event.vgtid;
             }
 
-            this.emit("change", { changes, lastVGtid: this.#lastVGtid });
+            this.emit("change", { changes, lastVGtid: this.#lastVGtid, timestamp: Number(event.timestamp ?? 0) });
 
             this.#currentTransaction = [];
 
@@ -164,7 +165,7 @@ export class VStream extends EventEmitter {
 
           case "ROLLBACK": {
             this.#currentTransaction = [];
-            this.emit("change", { changes: [], lastVGtid: this.#lastVGtid });
+            this.emit("change", { changes: [], lastVGtid: this.#lastVGtid, timestamp: Number(event.timestamp ?? 0) });
             break;
           }
 
